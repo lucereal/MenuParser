@@ -12,8 +12,13 @@
 
         public string fullText { get; set; }
 
+        public string menuContent { get; set; }
+
         public List<MenuItemDto> menuItems { get; set; }
 
+        public List<string> menuParagraphs { get; set; }
+
         public MenuDto menuDto { get; set; }
+
     }
 }

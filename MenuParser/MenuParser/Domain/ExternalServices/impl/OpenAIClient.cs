@@ -1,4 +1,6 @@
-﻿using MenuParser.Domain.ExternalServices.inter;
+﻿using Azure.Core;
+using Azure;
+using MenuParser.Domain.ExternalServices.inter;
 using MenuParser.Services.impl;
 using OpenAI;
 using OpenAI.Chat;
@@ -22,7 +24,7 @@ namespace MenuParser.Domain.ExternalServices.impl
             _configuration = configuration;
             apiKey = _configuration["OPENAI_API_KEY"];
 
-            _chatClient = new(model: "gpt-4o-mini", apiKey: apiKey);
+            _chatClient = new(model: "gpt-4o", apiKey: apiKey);
         }
 
         public async Task<string> GetChatCompletion()
@@ -39,6 +41,90 @@ namespace MenuParser.Domain.ExternalServices.impl
             return resultCompletion;
         }
 
+        public async Task<MenuDto> BreakdownMenuImage(MenuIntelligenceRequest menuIntelligenceRequest)
+        {
+            var instructions = "Your job is to take a picture and to parse and breakdown a full restaurant menu into a list of sections. Sections have a section name with a list of items that have name, price, and description. Some sections have subsections, those should be treated as their own section.";
+            //var prompt = $"{menu}";
+
+            SystemChatMessage systemInstructionsChatMessage = new SystemChatMessage(instructions);
+            List<ChatMessage> messages = [systemInstructionsChatMessage];
+   
+            IFormFile file = menuIntelligenceRequest.file.First();
+            using (var stream = file.OpenReadStream())
+            {
+                BinaryData imageBytes = BinaryData.FromStream(stream);
+                UserChatMessage userMenuItemChatMessage = new UserChatMessage(
+                ChatMessageContentPart.CreateTextPart("Here is the image."),
+                ChatMessageContentPart.CreateImagePart(imageBytes, "image/png"));
+                messages.Add(userMenuItemChatMessage);
+            }
+
+
+            ChatCompletionOptions options = new()
+            {
+                ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+                   jsonSchemaFormatName: "menu_full_breakdown",
+                   jsonSchema: BinaryData.FromBytes("""
+                            {
+                                    "type": "object",
+                                    "properties": {
+                                      "sections": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "sectionName": {
+                                              "type": "string"
+                                            },
+                                            "sectionListOfMenuItems": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "name": {
+                                                    "type": "string"
+                                                  },
+                                                  "description": {
+                                                    "type": "string"
+                                                  },
+                                                  "price": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "name",
+                                                  "description",
+                                                  "price"
+                                                ],"additionalProperties": false
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "sectionName",
+                                            "sectionListOfMenuItems"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "sections"
+                                    ],"additionalProperties": false
+                                  }
+                        """u8.ToArray()),
+                           jsonSchemaIsStrict: true)
+            };
+
+            options.Temperature = 0.2f;
+
+            ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, options);
+
+            using JsonDocument structuredJson = JsonDocument.Parse(completion.Content[0].Text);
+
+            MenuDto menuDto = menuDto = JsonSerializer.Deserialize<MenuDto>(completion.Content[0].Text);
+
+            return menuDto;
+        }
         public async Task<MenuDto> BreakdownMenuFull(string menu)
         {
             var instructions = "Your job is to parse and breakdown a full menu into a list of sections with the following properties: sectionName, sectionListOfMenuItems. Then to breakdown the sectionListOfMenuItems further into properties: name, description, price.";
@@ -104,6 +190,7 @@ namespace MenuParser.Domain.ExternalServices.impl
                            jsonSchemaIsStrict: true)
             };
 
+            
             ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, options);
 
             using JsonDocument structuredJson = JsonDocument.Parse(completion.Content[0].Text);

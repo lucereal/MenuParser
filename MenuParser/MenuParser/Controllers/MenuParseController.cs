@@ -22,6 +22,22 @@ namespace MenuParser.Controllers
          
         }
 
+        [HttpPost(Name = "ParseMenuGpt")]
+
+        public async Task<MenuParseResponse> ParseMenuGpt(MenuParseRequest request)
+        {
+
+
+            MenuParseResponse menuParseResponse = new MenuParseResponse();
+
+            MenuIntelligenceRequest menuIntelligenceRequest = new MenuIntelligenceRequest();
+            menuIntelligenceRequest.file = request.file;
+            MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.ParseMenuOpenAIVision(menuIntelligenceRequest);
+    
+            menuParseResponse.menuDto = menuIntelligenceResponse.menuDto;
+            return menuParseResponse;
+        }
+
         [HttpPost(Name = "ParseMenu")]
 
         public async Task<MenuParseResponse> ParseMenu(MenuParseRequest request)
@@ -34,6 +50,8 @@ namespace MenuParser.Controllers
             MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.ParseMenu(menuIntelligenceRequest);
             menuParseResponse.items = menuIntelligenceResponse.menuLines;
             menuParseResponse.fullText = menuIntelligenceResponse.fullText;
+            menuParseResponse.menuParagraphs = menuIntelligenceResponse.menuParagraphs;
+            menuParseResponse.menuContent = menuIntelligenceResponse.menuContent;
             return menuParseResponse;
         }
 

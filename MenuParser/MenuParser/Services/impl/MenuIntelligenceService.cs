@@ -50,7 +50,7 @@ namespace MenuParser.Services.impl
                 IFormFile file = request.file.First();
                 using (var stream = file.OpenReadStream())
                 {
-                    operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-receipt", stream);
+                    operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-read", stream);
                 }
             }
 
@@ -61,6 +61,16 @@ namespace MenuParser.Services.impl
                 AnalyzeResult result = operation.Value;
 
                 List<string> menuLines = new List<string>();
+                List<string> menuParagraphs = new List<string>();
+
+                Console.WriteLine($"Content: '{result.Content}'");
+
+                foreach (var paragraph in result.Paragraphs)
+                {
+                    menuParagraphs.Add(paragraph.Content);
+                    Console.WriteLine($"Paragraph: '{paragraph.Content}'");
+                }
+
                 foreach (DocumentPage page in result.Pages)
                 {
                     Console.WriteLine($"Document Page {page.PageNumber} has {page.Lines.Count} line(s), {page.Words.Count} word(s),");
@@ -68,7 +78,7 @@ namespace MenuParser.Services.impl
                     for (int i = 0; i < page.Lines.Count; i++)
                     {
                         DocumentLine line = page.Lines[i];
-                        Console.WriteLine($"  Line {i} has content: '{line.Content}'.");
+                        //Console.WriteLine($"  Line {i} has content: '{line.Content}'.");
 
                         menuLines.Add(line.Content);
                         //Console.WriteLine($"    Its bounding box is:");
@@ -80,7 +90,9 @@ namespace MenuParser.Services.impl
                 }
 
                 menuIntelligenceResponse.menuLines = menuLines;
-                menuIntelligenceResponse.fullText = string.Join("\n", menuLines);
+                menuIntelligenceResponse.menuParagraphs = menuParagraphs;
+                menuIntelligenceResponse.fullText = string.Join("\n", menuParagraphs);
+                menuIntelligenceResponse.menuContent = result.Content;
 
                 foreach (DocumentStyle style in result.Styles)
                 {
@@ -111,7 +123,15 @@ namespace MenuParser.Services.impl
             return menuIntelligenceResponse;
         }
 
+        public async Task<MenuIntelligenceResponse> ParseMenuOpenAIVision(MenuIntelligenceRequest request)
+        {
+            MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();
 
+            MenuDto menuDto = await _openAIClient.BreakdownMenuImage(request);
+
+            menuIntelligenceResponse.menuDto = menuDto;
+            return menuIntelligenceResponse;
+        }
         public async Task<MenuIntelligenceResponse> BreakdownMenuItem(MenuIntelligenceRequest request)
         {
             MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();

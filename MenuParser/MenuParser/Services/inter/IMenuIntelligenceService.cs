@@ -9,5 +9,7 @@ namespace MenuParser.Services.inter
         Task<MenuIntelligenceResponse> BreakdownMenuItem(MenuIntelligenceRequest request);
 
         Task<MenuIntelligenceResponse> BreakdownMenuFull(MenuIntelligenceRequest request);
+
+        Task<MenuIntelligenceResponse> ParseMenuOpenAIVision(MenuIntelligenceRequest request);
     }
 }
