@@ -33,20 +33,40 @@ namespace MenuParser.Controllers
             menuIntelligenceRequest.file = request.file;
             MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.ParseMenu(menuIntelligenceRequest);
             menuParseResponse.items = menuIntelligenceResponse.menuLines;
+            menuParseResponse.fullText = menuIntelligenceResponse.fullText;
             return menuParseResponse;
         }
 
-        [HttpPost(Name = "Breakdown")]
+        [HttpPost(Name = "BreakdownItem")]
 
-        public async Task<MenuParseResponse> Breakdown(MenuParseRequest request)
+        public async Task<MenuParseResponse> BreakdownItem(MenuParseRequest request)
         {
 
             MenuParseResponse menuParseResponse = new MenuParseResponse();
 
             MenuIntelligenceRequest menuIntelligenceRequest = new MenuIntelligenceRequest();
             menuIntelligenceRequest.file = request.file;
-            MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.BreakdownMenu(menuIntelligenceRequest);
+            MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.BreakdownMenuItem(menuIntelligenceRequest);
             menuParseResponse.items = menuIntelligenceResponse.menuLines;
+            menuParseResponse.fullText = menuIntelligenceResponse.fullText;
+            menuParseResponse.menuItems = menuIntelligenceResponse.menuItems;
+            return menuParseResponse;
+        }
+
+        [HttpPost(Name = "BreakdownFull")]
+
+        public async Task<MenuParseResponse> BreakdownFull(MenuParseRequest request)
+        {
+
+            MenuParseResponse menuParseResponse = new MenuParseResponse();
+
+            MenuIntelligenceRequest menuIntelligenceRequest = new MenuIntelligenceRequest();
+            menuIntelligenceRequest.file = request.file;
+            MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.BreakdownMenuFull(menuIntelligenceRequest);
+            menuParseResponse.items = menuIntelligenceResponse.menuLines;
+            menuParseResponse.fullText = menuIntelligenceResponse.fullText;
+            menuParseResponse.menuItems = menuIntelligenceResponse.menuItems;
+            menuParseResponse.menuDto = menuIntelligenceResponse.menuDto;
             return menuParseResponse;
         }
     }

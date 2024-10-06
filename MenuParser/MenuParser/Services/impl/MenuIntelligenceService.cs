@@ -80,7 +80,7 @@ namespace MenuParser.Services.impl
                 }
 
                 menuIntelligenceResponse.menuLines = menuLines;
-
+                menuIntelligenceResponse.fullText = string.Join("\n", menuLines);
 
                 foreach (DocumentStyle style in result.Styles)
                 {
@@ -112,14 +112,37 @@ namespace MenuParser.Services.impl
         }
 
 
-        public async Task<MenuIntelligenceResponse> BreakdownMenu(MenuIntelligenceRequest request)
+        public async Task<MenuIntelligenceResponse> BreakdownMenuItem(MenuIntelligenceRequest request)
         {
             MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();
 
-            string result = await _openAIClient.GetChatCompletion();
+            MenuIntelligenceResponse menu = await ParseMenu(request);
+            
+            MenuItemDto menuItemDto = await _openAIClient.BreakdownMenuLine(menu.menuLines[1]);
 
+            menuIntelligenceResponse.menuItems.Add(menuItemDto);
+            menuIntelligenceResponse.fullText = menu.fullText;
+            menuIntelligenceResponse.menuLines = menu.menuLines;
 
             return menuIntelligenceResponse;
         }
+
+        public async Task<MenuIntelligenceResponse> BreakdownMenuFull(MenuIntelligenceRequest request)
+        {
+            MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();
+
+            MenuIntelligenceResponse menu = await ParseMenu(request);
+
+            MenuDto menuDto = await _openAIClient.BreakdownMenuFull(menu.fullText);
+
+          
+            menuIntelligenceResponse.menuDto = menuDto;
+            menuIntelligenceResponse.fullText = menu.fullText;
+            menuIntelligenceResponse.menuLines = menu.menuLines;
+
+            return menuIntelligenceResponse;
+        }
+
+
     }
 }

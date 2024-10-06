@@ -6,6 +6,8 @@ namespace MenuParser.Services.inter
     {
         Task<MenuIntelligenceResponse> ParseMenu(MenuIntelligenceRequest request);
 
-        Task<MenuIntelligenceResponse> BreakdownMenu(MenuIntelligenceRequest request);
+        Task<MenuIntelligenceResponse> BreakdownMenuItem(MenuIntelligenceRequest request);
+
+        Task<MenuIntelligenceResponse> BreakdownMenuFull(MenuIntelligenceRequest request);
     }
 }
