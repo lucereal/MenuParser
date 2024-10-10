@@ -178,14 +178,12 @@ namespace MenuParser.Domain.ExternalServices.impl
 
             List<ChatMessage> messages =
             [
-                new UserChatMessage("Assign a category to a give menu item. The categories are breakfast, lunch, dinner, snack, appetizer, dessert, drink.\" + \r\n                \" Only choose a category that is in the list provided. " +
-                "What cateogry is this item in? The name of the menu item should NOT be used as the category. Only choose categories from the list defined here" +
-                " [breakfast, lunch, dinner, snack, appetizer, dessert, drink]" + menuItemStr),
+                new UserChatMessage("Assign a culture and a category to a give menu item." + menuItemStr),
             ];
 
             ChatCompletionOptions options = new()
             {
-                Tools = { getCurrentLocationTool, getCurrentWeatherTool, getMenuItemCategoryTool },
+                Tools = { getCurrentLocationTool, getCurrentWeatherTool, getMenuItemCategoryTool, getMenuItemCultureTool },
             };
 
             options.Temperature = 0.7f;
@@ -225,10 +223,6 @@ namespace MenuParser.Domain.ExternalServices.impl
 
                                     case nameof(GetCurrentWeather):
                                         {
-                                            // The arguments that the model wants to use to call the function are specified as a
-                                            // stringified JSON object based on the schema defined in the tool definition. Note that
-                                            // the model may hallucinate arguments too. Consequently, it is important to do the
-                                            // appropriate parsing and validation before calling the function.
                                             using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
                                             bool hasLocation = argumentsJson.RootElement.TryGetProperty("location", out JsonElement location);
                                             bool hasUnit = argumentsJson.RootElement.TryGetProperty("unit", out JsonElement unit);
@@ -256,6 +250,21 @@ namespace MenuParser.Domain.ExternalServices.impl
                                             }
 
                                             string toolResult = GetMenuItemCategory(category.GetString());
+                                            messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                            break;
+                                        }
+                                    case nameof(GetMenuItemCulture):
+                                        {
+
+                                            using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                            bool hasCulture = argumentsJson.RootElement.TryGetProperty("culture", out JsonElement culture);
+
+                                            if (!hasCulture)
+                                            {
+                                                throw new ArgumentNullException(nameof(culture), "The category argument is required.");
+                                            }
+
+                                            string toolResult = GetMenuItemCulture(culture.GetString());
                                             messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
                                             break;
                                         }
@@ -309,6 +318,21 @@ namespace MenuParser.Domain.ExternalServices.impl
 
 
         }
+        private static string GetMenuItemCulture(string category = "other")
+        {
+            switch (category.ToUpper())
+            {
+                case "MEXICAN": case "ITALIAN": case "INDIAN": case "JAPANESE": case "THAI": case "EUROPEAN": case "FRENCH": case "GREEK": case "CHINESE":
+                case "KOREAN": case "VIETNAMESE": case "SPANISH": case "LEBANESE": case "MOROCCAN": case "ETHIOPIAN": case "TURKISH": case "BRAZILIAN":
+                case "PERUVIAN": case "CARIBBEAN": case "RUSSIAN": case "GERMAN": case "INDONESIAN": case "FILIPINO":
+                    return category[0].ToString().ToUpper() + category[1..].ToLower();
+                default:
+                    return "Other";
+            }
+
+
+
+        }
 
         private static string GetCurrentLocation()
         {
@@ -322,7 +346,7 @@ namespace MenuParser.Domain.ExternalServices.impl
         }
         private static readonly ChatTool getMenuItemCategoryTool = ChatTool.CreateFunctionTool(
                 functionName: nameof(GetMenuItemCategory),
-                functionDescription: "Get the category for a given menu item",
+                functionDescription: "Get the category for a given menu item. Only choose a category that is in the list provided. What category is this item in? The name of the menu item should NOT be used as the category. Only choose categories from the list defined here [breakfast, lunch, dinner, snack, appetizer, dessert, drink]",
                 functionParameters: BinaryData.FromBytes("""
                                     {
                                         "type": "object",
@@ -333,6 +357,23 @@ namespace MenuParser.Domain.ExternalServices.impl
                                             }
                                         },
                                         "required": [ "category" ]
+                                    }
+                                    """u8.ToArray())
+                );        
+        private static readonly ChatTool getMenuItemCultureTool = ChatTool.CreateFunctionTool(
+                functionName: nameof(GetMenuItemCulture),
+                functionDescription: "Get the culture for a given menu item. Only choose a culture that is in the list provided. Only choose cultures from the list defined here " +
+            "[Mexican, Italian, Indian, Japanese, Thai, European, French, Greek, Chinese, Korean, Vietnamese, Spanish, Lebanese, Moroccan, Ethiopian, Turkish, Brazilian, Peruvian, Caribbean, Russian, German, Indonesian, Filipino.]",
+                functionParameters: BinaryData.FromBytes("""
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "culture": {
+                                                "type": "string",
+                                                "description": "The culture of a menu item"
+                                            }
+                                        },
+                                        "required": [ "culture" ]
                                     }
                                     """u8.ToArray())
                 );
