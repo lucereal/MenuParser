@@ -8,6 +8,7 @@ using System.Data;
 
 using System.Reflection.Metadata;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace MenuParser.Domain.ExternalServices.impl
 {
@@ -115,7 +116,7 @@ namespace MenuParser.Domain.ExternalServices.impl
                            jsonSchemaIsStrict: true)
             };
 
-            options.Temperature = 0.2f;
+            options.Temperature = 0.7f;
 
             ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, options);
 
@@ -125,6 +126,179 @@ namespace MenuParser.Domain.ExternalServices.impl
 
             return menuDto;
         }
+
+        public async Task<MenuDto> MenuItemCategory(MenuDto menuDto)
+        {
+            var instructions = "Your job is to take a picture and to parse and breakdown a full restaurant menu into a list of sections. " +
+                "Sections have a section name with a list of items that have name, price, and description. Some sections have subsections, " +
+                "those should be treated as their own section.";
+
+            var prompt = "Your job is to categorize json representation of a menu item which has name, description, and price. The category options are " + 
+                "";
+            
+            
+
+            //SystemChatMessage systemInstructionsChatMessage = new SystemChatMessage(instructions);
+            //List<ChatMessage> messages = [systemInstructionsChatMessage];
+
+            //ChatCompletionOptions options = new()
+            //{
+            //    ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+            //       jsonSchemaFormatName: "menu_item_categorization",
+            //       jsonSchema: BinaryData.FromBytes("""
+            //            {
+            //              "type": "object",
+            //              "properties": {
+            //                "category": {
+            //                  "type": "string"
+            //                }
+            //              },
+            //              "required": [
+            //                "category"
+            //              ],
+            //              "additionalProperties": false
+            //            }
+            //            """u8.ToArray()),
+            //               jsonSchemaIsStrict: true),
+            //    Tools = { getCurrentLocationTool, getCurrentWeatherTool },
+            //};
+        }
+
+        private async Task<ChatMessage> doChatCompletionWithTools()
+        {
+            ChatClient client = _chatClient;
+
+            List<ChatMessage> messages =
+            [
+                new UserChatMessage("What's the weather like today?"),
+            ];
+
+            ChatCompletionOptions options = new()
+            {
+                Tools = { getCurrentLocationTool, getCurrentWeatherTool },
+            };
+
+            bool requiresAction;
+
+            do
+            {
+                requiresAction = false;
+                ChatCompletion completion = await client.CompleteChatAsync(messages, options);
+
+                switch (completion.FinishReason)
+                {
+                    case ChatFinishReason.Stop:
+                        {
+                            // Add the assistant message to the conversation history.
+                            messages.Add(new AssistantChatMessage(completion));
+                            break;
+                        }
+
+                    case ChatFinishReason.ToolCalls:
+                        {
+                            // First, add the assistant message with tool calls to the conversation history.
+                            messages.Add(new AssistantChatMessage(completion));
+
+                            // Then, add a new tool message for each tool call that is resolved.
+                            foreach (ChatToolCall toolCall in completion.ToolCalls)
+                            {
+                                switch (toolCall.FunctionName)
+                                {
+                                    case nameof(GetCurrentLocation):
+                                        {
+                                            string toolResult = GetCurrentLocation();
+                                            messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                            break;
+                                        }
+
+                                    case nameof(GetCurrentWeather):
+                                        {
+                                            // The arguments that the model wants to use to call the function are specified as a
+                                            // stringified JSON object based on the schema defined in the tool definition. Note that
+                                            // the model may hallucinate arguments too. Consequently, it is important to do the
+                                            // appropriate parsing and validation before calling the function.
+                                            using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                            bool hasLocation = argumentsJson.RootElement.TryGetProperty("location", out JsonElement location);
+                                            bool hasUnit = argumentsJson.RootElement.TryGetProperty("unit", out JsonElement unit);
+
+                                            if (!hasLocation)
+                                            {
+                                                throw new ArgumentNullException(nameof(location), "The location argument is required.");
+                                            }
+
+                                            string toolResult = hasUnit
+                                                ? GetCurrentWeather(location.GetString(), unit.GetString())
+                                                : GetCurrentWeather(location.GetString());
+                                            messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                            break;
+                                        }
+
+                                    default:
+                                        {
+                                            // Handle other unexpected calls.
+                                            throw new NotImplementedException();
+                                        }
+                                }
+                            }
+
+                            requiresAction = true;
+                            break;
+                        }
+
+                    case ChatFinishReason.Length:
+                        throw new NotImplementedException("Incomplete model output due to MaxTokens parameter or token limit exceeded.");
+
+                    case ChatFinishReason.ContentFilter:
+                        throw new NotImplementedException("Omitted content due to a content filter flag.");
+
+                    case ChatFinishReason.FunctionCall:
+                        throw new NotImplementedException("Deprecated in favor of tool calls.");
+
+                    default:
+                        throw new NotImplementedException(completion.FinishReason.ToString());
+                }
+            } while (requiresAction);
+
+            return messages;
+        }
+
+        private static string GetCurrentLocation()
+        {
+            // Call the location API here.
+            return "San Francisco";
+        }
+         static string GetCurrentWeather(string location, string unit = "celsius")
+        {
+            // Call the weather API here.
+            return $"31 {unit}";
+        }
+        private static readonly ChatTool getCurrentWeatherTool = ChatTool.CreateFunctionTool(
+                functionName: nameof(GetCurrentWeather),
+                functionDescription: "Get the current weather in a given location",
+                functionParameters: BinaryData.FromBytes("""
+                            {
+                                "type": "object",
+                                "properties": {
+                                    "location": {
+                                        "type": "string",
+                                        "description": "The city and state, e.g. Boston, MA"
+                                    },
+                                    "unit": {
+                                        "type": "string",
+                                        "enum": [ "celsius", "fahrenheit" ],
+                                        "description": "The temperature unit to use. Infer this from the specified location."
+                                    }
+                                },
+                                "required": [ "location" ]
+                            }
+                            """u8.ToArray())
+                );
+        private static readonly ChatTool getCurrentLocationTool = ChatTool.CreateFunctionTool(
+                    functionName: nameof(GetCurrentLocation),
+                    functionDescription: "Get the user's current location"
+                );
+
+
         public async Task<MenuDto> BreakdownMenuFull(string menu)
         {
             var instructions = "Your job is to parse and breakdown a full menu into a list of sections with the following properties: sectionName, sectionListOfMenuItems. Then to breakdown the sectionListOfMenuItems further into properties: name, description, price.";
