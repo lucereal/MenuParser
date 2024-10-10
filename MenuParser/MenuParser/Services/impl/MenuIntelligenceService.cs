@@ -132,6 +132,18 @@ namespace MenuParser.Services.impl
             menuIntelligenceResponse.menuDto = menuDto;
             return menuIntelligenceResponse;
         }
+
+        public async Task<MenuIntelligenceResponse> MenuCategoryAssignment(MenuIntelligenceRequest request)
+        {
+            MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();
+
+            MenuDto menuDto = await _openAIClient.MenuItemCategory(new MenuDto());
+
+            menuIntelligenceResponse.menuDto = menuDto;
+            return menuIntelligenceResponse;
+        }
+
+
         public async Task<MenuIntelligenceResponse> BreakdownMenuItem(MenuIntelligenceRequest request)
         {
             MenuIntelligenceResponse menuIntelligenceResponse = new MenuIntelligenceResponse();

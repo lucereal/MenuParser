@@ -135,9 +135,10 @@ namespace MenuParser.Domain.ExternalServices.impl
 
             var prompt = "Your job is to categorize json representation of a menu item which has name, description, and price. The category options are " + 
                 "";
-            
-            
 
+            List<ChatMessage> chatMessages = await doChatCompletionWithTools();
+
+            return new MenuDto();
             //SystemChatMessage systemInstructionsChatMessage = new SystemChatMessage(instructions);
             //List<ChatMessage> messages = [systemInstructionsChatMessage];
 
@@ -164,19 +165,30 @@ namespace MenuParser.Domain.ExternalServices.impl
             //};
         }
 
-        private async Task<ChatMessage> doChatCompletionWithTools()
+        private async Task<List<ChatMessage>> doChatCompletionWithTools()
         {
             ChatClient client = _chatClient;
 
+            MenuDto.MenuItem menuItem = new MenuDto.MenuItem();
+
+            menuItem.name = "Acorn Squash Tostada"; menuItem.description = "Confit squash, whipped queso fresco, verde salsa macha, fermented spicy honey, sage (gf, vegetarian, contains dairy)"; 
+            menuItem.price = "7.50";
+            //menuItem.name = "Coco Rico Paleta"; menuItem.description = "Coconut milk, coconut cream, coconut chips (gf, contains dairy)"; menuItem.price = "7";
+            String menuItemStr = menuItem.getMenuItemString(); //JsonSerializer.Serialize(menuItem);
+
             List<ChatMessage> messages =
             [
-                new UserChatMessage("What's the weather like today?"),
+                new UserChatMessage("Assign a category to a give menu item. The categories are breakfast, lunch, dinner, snack, appetizer, dessert, drink.\" + \r\n                \" Only choose a category that is in the list provided. " +
+                "What cateogry is this item in? The name of the menu item should NOT be used as the category. Only choose categories from the list defined here" +
+                " [breakfast, lunch, dinner, snack, appetizer, dessert, drink]" + menuItemStr),
             ];
 
             ChatCompletionOptions options = new()
             {
-                Tools = { getCurrentLocationTool, getCurrentWeatherTool },
+                Tools = { getCurrentLocationTool, getCurrentWeatherTool, getMenuItemCategoryTool },
             };
+
+            options.Temperature = 0.7f;
 
             bool requiresAction;
 
@@ -232,7 +244,21 @@ namespace MenuParser.Domain.ExternalServices.impl
                                             messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
                                             break;
                                         }
+                                    case nameof(GetMenuItemCategory):
+                                        {
+                                           
+                                            using JsonDocument argumentsJson = JsonDocument.Parse(toolCall.FunctionArguments);
+                                            bool hasCategory = argumentsJson.RootElement.TryGetProperty("category", out JsonElement category);
 
+                                            if (!hasCategory)
+                                            {
+                                                throw new ArgumentNullException(nameof(category), "The category argument is required.");
+                                            }
+
+                                            string toolResult = GetMenuItemCategory(category.GetString());
+                                            messages.Add(new ToolChatMessage(toolCall.Id, toolResult));
+                                            break;
+                                        }
                                     default:
                                         {
                                             // Handle other unexpected calls.
@@ -262,6 +288,28 @@ namespace MenuParser.Domain.ExternalServices.impl
             return messages;
         }
 
+        private static string GetMenuItemCategory(string category = "other")
+        {
+            switch (category.ToUpper())
+            {
+                case "SNACK":
+                    return "Snack";
+                    
+                case "BREAKFAST":
+                    return "Breakfast";
+                case "DINNER":
+                    return "Dinner";
+                case "LUNCH":
+                    return "Lunch";
+                case "DESSERT":
+                    return "Dessert";
+                default:
+                    return "Other";
+            }
+
+
+        }
+
         private static string GetCurrentLocation()
         {
             // Call the location API here.
@@ -272,6 +320,22 @@ namespace MenuParser.Domain.ExternalServices.impl
             // Call the weather API here.
             return $"31 {unit}";
         }
+        private static readonly ChatTool getMenuItemCategoryTool = ChatTool.CreateFunctionTool(
+                functionName: nameof(GetMenuItemCategory),
+                functionDescription: "Get the category for a given menu item",
+                functionParameters: BinaryData.FromBytes("""
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "category": {
+                                                "type": "string",
+                                                "description": "The category of a menu item"
+                                            }
+                                        },
+                                        "required": [ "category" ]
+                                    }
+                                    """u8.ToArray())
+                );
         private static readonly ChatTool getCurrentWeatherTool = ChatTool.CreateFunctionTool(
                 functionName: nameof(GetCurrentWeather),
                 functionDescription: "Get the current weather in a given location",

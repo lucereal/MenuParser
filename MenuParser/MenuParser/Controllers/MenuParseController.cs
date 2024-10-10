@@ -38,6 +38,21 @@ namespace MenuParser.Controllers
             return menuParseResponse;
         }
 
+        [HttpPost(Name = "MenuCategory")]
+        public async Task<MenuParseResponse> MenuCategory(MenuParseRequest request)
+        {
+
+
+            MenuParseResponse menuParseResponse = new MenuParseResponse();
+
+            MenuIntelligenceRequest menuIntelligenceRequest = new MenuIntelligenceRequest();
+            menuIntelligenceRequest.file = request.file;
+            MenuIntelligenceResponse menuIntelligenceResponse = await _menuIntelligenceService.MenuCategoryAssignment(menuIntelligenceRequest);
+
+            menuParseResponse.menuDto = menuIntelligenceResponse.menuDto;
+            return menuParseResponse;
+        }
+
         [HttpPost(Name = "ParseMenu")]
 
         public async Task<MenuParseResponse> ParseMenu(MenuParseRequest request)

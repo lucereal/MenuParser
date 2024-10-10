@@ -11,5 +11,7 @@ namespace MenuParser.Services.inter
         Task<MenuIntelligenceResponse> BreakdownMenuFull(MenuIntelligenceRequest request);
 
         Task<MenuIntelligenceResponse> ParseMenuOpenAIVision(MenuIntelligenceRequest request);
+
+        Task<MenuIntelligenceResponse> MenuCategoryAssignment(MenuIntelligenceRequest request);
     }
 }

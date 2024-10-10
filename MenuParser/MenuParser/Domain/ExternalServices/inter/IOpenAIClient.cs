@@ -7,5 +7,7 @@
         Task<MenuDto> BreakdownMenuFull(string menu);
 
         Task<MenuDto> BreakdownMenuImage(MenuIntelligenceRequest menuIntelligenceRequest);
+
+        Task<MenuDto> MenuItemCategory(MenuDto menuDto);
     }
 }
