@@ -102,5 +102,8 @@ namespace MenuParser.Controllers
             menuParseResponse.menuDto = menuIntelligenceResponse.menuDto;
             return menuParseResponse;
         }
+
+
+
     }
 }

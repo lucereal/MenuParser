@@ -21,6 +21,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IMenuIntelligenceService, MenuIntelligenceService>();
 builder.Services.AddScoped<IOpenAIClient, OpenAIClient>();
+builder.Services.AddScoped<IGoogleSearchClient, GoogleSearchClient>();
+builder.Services.AddScoped<IWebSearchService, WebSearchService>();
+builder.Services.AddScoped<HttpClient, HttpClient>();
 //builder.Services.AddScoped(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 //builder.Services.AddSingleton<IMongoDBContext>(new MongoDBContext(MongoClientSettings.FromUrl(new MongoUrl(connectionString))));
 

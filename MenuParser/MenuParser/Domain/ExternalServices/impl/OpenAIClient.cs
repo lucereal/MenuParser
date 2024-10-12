@@ -174,7 +174,7 @@ namespace MenuParser.Domain.ExternalServices.impl
             menuItem.name = "Acorn Squash Tostada"; menuItem.description = "Confit squash, whipped queso fresco, verde salsa macha, fermented spicy honey, sage (gf, vegetarian, contains dairy)"; 
             menuItem.price = "7.50";
             //menuItem.name = "Coco Rico Paleta"; menuItem.description = "Coconut milk, coconut cream, coconut chips (gf, contains dairy)"; menuItem.price = "7";
-            String menuItemStr = menuItem.getMenuItemString(); //JsonSerializer.Serialize(menuItem);
+            String menuItemStr = menuItem.getMenuItemString(); 
 
             List<ChatMessage> messages =
             [
